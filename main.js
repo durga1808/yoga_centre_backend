@@ -269,11 +269,11 @@ app.delete(AppName + '/deleteCourseMasterId', (req, res) => {
     });
 });
 
-app.delete(AppName + '/deleteUserMasterId', (req,res) => {
-    const {id, username} = req.body;
+app.delete(AppName + '/deleteUserMasterId', (req, res) => {
+    const { id, username } = req.body;
 
-    con.query('DELETE FROM `usermaster` WHERE id=? AND username= ?',[id,username], (err,result) => {
-        if(err){
+    con.query('DELETE FROM `usermaster` WHERE id=? AND username= ?', [id, username], (err, result) => {
+        if (err) {
             return res.status(400).json({
                 status: false,
                 message: err.message
@@ -288,11 +288,11 @@ app.delete(AppName + '/deleteUserMasterId', (req,res) => {
 });
 
 
-app.delete(AppName + '/deleteVideoMasterId', (req,res) =>{
-    const {id,coursename} = req.body;
+app.delete(AppName + '/deleteVideoMasterId', (req, res) => {
+    const { id, coursename } = req.body;
 
-    con.query('DELETE FROM `youtubelink` WHERE id =? AND coursename =?',[id,coursename], (err,result) =>{
-        if(err){
+    con.query('DELETE FROM `youtubelink` WHERE id =? AND coursename =?', [id, coursename], (err, result) => {
+        if (err) {
             return res.status(400).json({
                 status: false,
                 message: err.message
@@ -352,7 +352,7 @@ app.post(AppName + '/addmyscore', (req, res) => {
         if (err) {
             res.status(200).json({
                 status: false,
-                message: err.message // Send back the error message
+                message: err.message
             });
         } else if (result[0].count == 0) {
 
@@ -579,86 +579,149 @@ app.post(AppName + '/courseWiseReport', (req, res) => {
 });
 
 //monthwise report super user
-app.post(AppName + '/monthWiseReportuser', (req, res) => {
-    const { username, month, year } = req.body;
+// app.post(AppName + '/monthWiseReportuser', (req, res) => {
+//     const { username, month, year } = req.body;
 
 
-    if (!username || !month || !year) {
-        return res.status(400).json({
+//     if (!username || !month || !year) {
+//         return res.status(400).json({
+//             status: false,
+//             message: "Invalid or missing parameters",
+//         });
+//     }
+
+//     const dataQuery = `
+//         SELECT 
+//             SUM(m.occurance) AS occurance, 
+//             m.remarks, 
+//             m.coursename, 
+//             DATE_FORMAT(m.date, '%d/%m/%Y') AS 'date'
+//         FROM myscore m
+//         INNER JOIN coursemaster c ON m.coursename = c.coursename
+//         INNER JOIN usermaster u ON m.createdby = u.id 
+//         WHERE m.createdby = (SELECT id FROM usermaster WHERE username = ?)
+//         AND YEAR(m.date) = ?
+//         AND MONTH(m.date) = ?
+//         GROUP BY m.coursename, m.date, m.remarks;
+//     `;
+
+
+//     con.query(dataQuery, [username, year, month], (err, result) => {
+//         if (err) {
+//             return res.status(500).json({
+//                 status: false,
+//                 message: `Database error: ${err.message}`,
+//             });
+//         }
+
+
+//         if (result.length === 0) {
+//             return res.status(200).json({
+//                 status: false,
+//                 message: "No data found for the given parameters",
+//             });
+//         }
+
+
+//         return res.status(200).json({
+//             status: true,
+//             message: result,
+//         });
+//     });
+// });
+
+
+
+app.post(AppName + '/monthWiseReportuser', (req,res) => {
+   const { username, month , year}  = req.body;
+
+   if(!month || !year) {
+    return res.status(400).json({
+        status : false,
+        message: "Invalid or missing parameters",
+    });
+   }
+
+   let dataQuery = ` SELECT SUM(m.occurance) AS occurance,
+   m.remarks,
+   m.coursename,
+   u.phoneno,
+   DATE_FORMAT(m.date, '%d/%m/%Y') AS 'date'
+   FROM myscore m 
+   INNER JOIN coursemaster c ON m.coursename = c.coursename
+   INNER JOIN usermaster u ON m.createdby = u.id
+   WHERE YEAR(m.date) = ? AND MONTH(m.date) = ?
+
+   `;
+
+   let queryParams = [year, month];
+
+   if (username && username !== "All Users") {
+    dataQuery += `   AND m.createdby = (SELECT id from usermaster WHERE username = ?)`;
+    queryParams.push(username);
+   }
+
+   dataQuery += `GROUP BY m.coursename, m.date, m.remarks`;
+
+   con.query(dataQuery, queryParams, (err, result) => {
+    if (err) {
+        return res.status(500).json({
             status: false,
-            message: "Invalid or missing parameters",
+            message : `Database error: ${err.message} `,
+        });
+    }
+    
+    if (result.length ===0) {
+        return res.status(200).json({
+            status: false,
+            message: "No data found for the given parameters",
         });
     }
 
-    const dataQuery = `
-        SELECT 
-            SUM(m.occurance) AS occurance, 
-            m.remarks, 
-            m.coursename, 
-            DATE_FORMAT(m.date, '%d/%m/%Y') AS 'date'
-        FROM myscore m
-        INNER JOIN coursemaster c ON m.coursename = c.coursename
-        INNER JOIN usermaster u ON m.createdby = u.id 
-        WHERE m.createdby = (SELECT id FROM usermaster WHERE username = ?)
-        AND YEAR(m.date) = ?
-        AND MONTH(m.date) = ?
-        GROUP BY m.coursename, m.date, m.remarks;
-    `;
-
-
-    con.query(dataQuery, [username, year, month], (err, result) => {
-        if (err) {
-            return res.status(500).json({
-                status: false,
-                message: `Database error: ${err.message}`,
-            });
-        }
-
-
-        if (result.length === 0) {
-            return res.status(200).json({
-                status: false,
-                message: "No data found for the given parameters",
-            });
-        }
-
-
-        return res.status(200).json({
-            status: true,
-            message: result,
-        });
+    return res.status(200).json({
+        status: true,
+        message: result,
     });
+
+   });
+
 });
 
 
 //AllUserWiseReport
-
 app.post(AppName + '/allUserWiseReport', (req, res) => {
-    const { month, year } = req.body;
+    const { month, year, username } = req.body;
 
-    if (!month || !year) {
+    if (!month || !year || !username) {
         return res.status(400).json({
             status: false,
             message: "Invalid or missing parameters",
         });
     }
 
-    const dataQuery = `
+    let dataQuery = `
         SELECT 
-            u.username,
+            u.firstname AS username,  
+            u.phoneno,
             SUM(m.occurance) AS occurance, 
             m.remarks, 
             m.coursename, 
-            DATE_FORMAT(m.date, '%d/%m/%Y') AS 'date'
+            DATE_FORMAT(m.date, '%d/%m/%Y') AS date
         FROM myscore m
         INNER JOIN coursemaster c ON m.coursename = c.coursename
         INNER JOIN usermaster u ON m.createdby = u.id 
         WHERE YEAR(m.date) = ?
         AND MONTH(m.date) = ?
-        GROUP BY u.username, m.coursename, m.date, m.remarks;
     `;
+    
+    if (username !== "All Users") {
+        dataQuery += " AND u.firstname LIKE ?"; 
+    }
 
-    con.query(dataQuery, [year, month], (err, result) => {
+    dataQuery += " GROUP BY u.firstname, u.phoneno, m.coursename, m.date, m.remarks;";  
+    const queryParams = username === "All Users" ? [year, month] : [year, month, `%${username}%`]; 
+
+    con.query(dataQuery, queryParams, (err, result) => {
         if (err) {
             return res.status(500).json({
                 status: false,
@@ -679,7 +742,6 @@ app.post(AppName + '/allUserWiseReport', (req, res) => {
         });
     });
 });
-
 
 //upload video
 
@@ -913,7 +975,7 @@ app.post(AppName + '/getupadtecoursestatus', (req, res) => {
 app.post(AppName + '/getusermasterreport', (req, res) => {
     // const id = req.body.id;
 
-    con.query('SELECT id, username,status FROM `usermaster`', (err, result) => {
+    con.query('SELECT id, username,status,phoneno FROM `usermaster`', (err, result) => {
         if (err) {
 
             res.status(500).json({
@@ -945,7 +1007,7 @@ app.post(AppName + '/addNewUser', (req, res) => {
 
     con.query(
         "INSERT INTO usermaster(firstname, username, userpassword, mailid, issuperuser,phoneno,countrycode) VALUES (?,?,?,?,?,?,?)",
-        [firstname, username, userpassword, mailid, issuperuser,phoneno,countrycode],
+        [firstname, username, userpassword, mailid, issuperuser, phoneno, countrycode],
         (err, result) => {
             if (err) {
                 res.status(200).json({
@@ -961,3 +1023,79 @@ app.post(AppName + '/addNewUser', (req, res) => {
         }
     );
 });
+
+
+//Register User
+app.post(AppName + '/registerUser', (req, res) => {
+    const firstname = req.body.firstname;
+    const username = req.body.username;
+    const userpassword = req.body.userpassword;
+    const mailid = req.body.mailid;
+    const phoneno = req.body.phoneno;
+
+
+    con.query(
+        "INSERT INTO usermaster(firstname, username, userpassword, mailid,phoneno) VALUES (?,?,?,?,?)",
+        [firstname, username, userpassword, mailid, phoneno],
+        (err, result) => {
+            if (err) {
+                res.status(200).json({
+                    status: false,
+                    message: err.message,
+                });
+            } else {
+                res.status(200).json({
+                    status: true,
+                    message: "Register User Added Successfully!",
+                });
+            }
+        }
+    );
+});
+
+// Check if Email Exists
+app.post(AppName + '/checkEmail', (req, res) => {
+    const mailid = req.body.mailid;
+
+    con.query(
+        "SELECT COUNT(*) AS count FROM usermaster WHERE mailid = ?",
+        [mailid],
+        (err, result) => {
+            if (err) {
+                res.status(500).json({
+                    status: false,
+                    message: err.message,
+                });
+            } else {
+                const count = result[0].count;
+                res.status(200).json({
+                    exists: count > 0,
+                });
+            }
+        }
+    );
+});
+
+// Check if Phone Number Exists
+app.post(AppName + '/checkPhone', (req, res) => {
+    const phoneno = req.body.phoneno;
+
+    con.query(
+        "SELECT COUNT(*) AS count FROM usermaster WHERE phoneno = ?",
+        [phoneno],
+        (err, result) => {
+            if (err) {
+                res.status(500).json({
+                    status: false,
+                    message: err.message,
+                });
+            } else {
+                const count = result[0].count;
+                res.status(200).json({
+                    exists: count > 0,
+                });
+            }
+        }
+    );
+});
+
